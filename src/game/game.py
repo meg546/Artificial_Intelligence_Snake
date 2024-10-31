@@ -1,5 +1,5 @@
 import pygame
-from config.settings import WIDTH, HEIGHT, TILE_SIZE, LOG_WIDTH, COLOR_BACKGROUND, COLOR_TEXT, SNAKE_SPEED, COLOR_LIGHT, COLOR_DARK
+from config.settings import * 
 from src.game.snake import Snake
 from src.game.food import Food
 from src.game.board import Board
@@ -15,7 +15,7 @@ class Game:
         self.reset_game()
 
         # Game State
-        self.font = pygame.font.SysFont(None, 24)
+        self.font = pygame.font.SysFont("Arial", 18)
         self.logs = []
         self.position_message = ""
 

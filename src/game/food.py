@@ -1,5 +1,3 @@
-# src/game/food.py
-
 import pygame
 import random
 

@@ -14,6 +14,5 @@ COLOR_TEXT = (255, 255, 255)    # White for score and game over text
 COLOR_LIGHT = (170, 215, 81)    # A soft green
 COLOR_DARK = (162, 209, 73)     # A slightly darker green
 
-
 # Game Settings
 SNAKE_SPEED = 10     # Game speed in frames per second (adjust this for difficulty)

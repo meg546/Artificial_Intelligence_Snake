@@ -14,7 +14,7 @@ class Node:
 
     def __lt__(self, other):
         return self.f_cost < other.f_cost
-
+    
 def a_star_search(start, goal, snake_body, grid_width, grid_height):
     open_list = []
     closed_set = set()
@@ -65,7 +65,15 @@ def a_star_search(start, goal, snake_body, grid_width, grid_height):
 
             # Calculate costs
             neighbor.g_cost = current_node.g_cost + 1
-            neighbor.h_cost = abs(neighbor.position[0] - goal_node.position[0]) + abs(neighbor.position[1] - goal_node.position[1])
+            
+            # Heuristic: Manhattan distance to the goal
+            manhattan_distance = abs(neighbor.position[0] - goal_node.position[0]) + abs(neighbor.position[1] - goal_node.position[1])
+
+            # Additional heuristic: Penalize proximity to the snake's body
+            body_penalty = sum(1 for segment in snake_body if abs(segment[0] - neighbor.position[0]) + abs(segment[1] - neighbor.position[1]) <= 1)
+
+            # Total heuristic cost
+            neighbor.h_cost = manhattan_distance + body_penalty
             neighbor.f_cost = neighbor.g_cost + neighbor.h_cost
 
             # Check if neighbor is in open list with a lower f_cost
@@ -119,7 +127,9 @@ def a_star_move(snake, food, board):
 Attempt to keep the snake alive by making a safe random move.
 """
 def stay_alive(snake, board):
-
+    """
+    Attempt to keep the snake alive by prioritizing moves that maximize reachable space.
+    """
     possible_moves = [
         ((0, -1), "UP"),
         ((0, 1), "DOWN"),
@@ -129,9 +139,10 @@ def stay_alive(snake, board):
 
     head_x, head_y = snake.head_position()
     snake_body = [(segment[0] // TILE_SIZE, segment[1] // TILE_SIZE) for segment in snake.body]
+
     safe_moves = []
 
-    # Filter out moves that lead to collisions
+    # Evaluate moves and prioritize those that maximize open space
     for move, direction in possible_moves:
         next_x = (head_x // TILE_SIZE) + move[0]
         next_y = (head_y // TILE_SIZE) + move[1]
@@ -139,15 +150,53 @@ def stay_alive(snake, board):
         # Check if within bounds and not colliding with itself
         if 0 <= next_x < board.grid_width and 0 <= next_y < board.grid_height:
             if (next_x, next_y) not in snake_body:
-                safe_moves.append(direction)
+                # Calculate open space for this move
+                reachable_space = flood_fill(next_x, next_y, snake_body, board.grid_width, board.grid_height)
+                safe_moves.append((direction, reachable_space))
 
-    # If there are safe moves, pick one randomly
+    # Prioritize moves with the most reachable space
     if safe_moves:
-        snake.change_direction(random.choice(safe_moves))
+        best_move = max(safe_moves, key=lambda x: x[1])  # Pick the move with the highest reachable space
+        snake.change_direction(best_move[0])
     else:
         # If no safe moves, do nothing (snake will stay in place, likely to die)
         if VERBOSE:
             print("No safe moves available, snake is trapped.")
+            
+def flood_fill(x, y, snake_body, grid_width, grid_height):
+    """
+    Perform flood fill to calculate reachable open space.
+    """
+    visited = set()
+    queue = [(x, y)]
+    reachable_space = 0
+
+    while queue:
+        current_x, current_y = queue.pop(0)
+        if (current_x, current_y) in visited:
+            continue
+        visited.add((current_x, current_y))
+
+        # Check if out of bounds or colliding with the snake's body
+        if current_x < 0 or current_x >= grid_width or current_y < 0 or current_y >= grid_height:
+            continue
+        if (current_x, current_y) in snake_body:
+            continue
+
+        reachable_space += 1
+
+        # Add neighbors to the queue
+        neighbors = [
+            (current_x, current_y - 1),  # UP
+            (current_x, current_y + 1),  # DOWN
+            (current_x - 1, current_y),  # LEFT
+            (current_x + 1, current_y)   # RIGHT
+        ]
+        for neighbor in neighbors:
+            if neighbor not in visited:
+                queue.append(neighbor)
+
+    return reachable_space
 
 @property
 def a_star_average_score(self):

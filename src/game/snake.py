@@ -65,3 +65,22 @@ class Snake:
         for segment in self.body:
             x, y = segment
             pygame.draw.rect(surface, (0, 255, 0), (x, y, self.tile_size, self.tile_size))
+
+    def get_next_head_position(self):
+        """
+        Returns the position of the snake's head after it moves in its current direction.
+        """
+        head_x, head_y = self.head_position()
+
+        if self.direction == "UP":
+            return head_x, head_y - self.tile_size
+        elif self.direction == "DOWN":
+            return head_x, head_y + self.tile_size
+        elif self.direction == "LEFT":
+            return head_x - self.tile_size, head_y
+        elif self.direction == "RIGHT":
+            return head_x + self.tile_size, head_y
+
+        # If no direction is set, return the current head position
+        return head_x, head_y
+

@@ -15,7 +15,7 @@ COLOR_LIGHT = (170, 215, 81)    # Soft green
 COLOR_DARK = (162, 209, 73)     # Darker green
 
 # Game Settings
-SNAKE_SPEED = 800
+SNAKE_SPEED = 500
 
 # Mode Constants
 NORMAL_MODE = "normal"

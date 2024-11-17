@@ -173,10 +173,8 @@ class DeepQLearningModel:
 
         # Reward system
         if not board.is_within_bounds((next_head_x, next_head_y)) or snake.has_collision():
-            return -20  # Large penalty for dying
+            return -10  # Large penalty for dying
         elif (next_head_x, next_head_y) == (fruit_x, fruit_y):
-            return 30  # Large reward for eating food
-        elif distance_after < distance_before:
-            return 1  # Small reward for getting closer
+            return 10  # Large reward for eating food
         else:
-            return -0.1  # Small penalty for moving away
+            return 0  # no reward

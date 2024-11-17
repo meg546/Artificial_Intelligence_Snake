@@ -8,6 +8,7 @@ from src.ai.ai_controller import *
 from src.game.snake import Snake
 from src.game.food import Food
 from src.game.board import Board
+from src.ai.visualization import plot
 
 class Game:
     def __init__(self, automate=False, max_runs=1):
@@ -29,6 +30,9 @@ class Game:
         )
         self.learning_model.load_model("model.pth")
 
+        # Initialize score tracking for visualization
+        self.scores = []  # List to store scores for plotting
+        self.mean_scores = []  # List to store mean scores
 
         self.epsilon = 1.0  # Initial exploration rate
         self.epsilon_decay = 0.995  # Decay rate for exploration
@@ -179,6 +183,12 @@ class Game:
         stats["total_score"] += self.score
         stats["highest_score"] = max(stats["highest_score"], self.score)
 
+        # Append the score to the scores list
+        if self.mode == LEARNING_MODE:
+            self.scores.append(self.score)
+            mean_score = sum(self.scores[-100:]) / min(len(self.scores), 100)
+            self.mean_scores.append(mean_score)
+
         # Log run data (run number and score)
         run_info = {"run": stats["runs"], "score": self.score}
         self.run_data[self.mode].append(run_info)
@@ -186,16 +196,18 @@ class Game:
         self.save_statistics()
 
         # Save the learning model for every 100 runs
-        if self.mode == LEARNING_MODE and stats["runs"] % 100 == 0:
-            self.learning_model.save_model()
-            print(f"[LEARNING_MODE] Model saved at run {stats['runs']}.")
+        if self.mode == LEARNING_MODE and self.current_run == self.max_runs - 1:  # At the end of automation
+            plot(self.scores, self.mean_scores, save_path="final_learning_plot.png")
+            print("Automation completed. Learning plot saved.")
 
         if self.automate:
             self.current_run += 1
             if self.current_run < self.max_runs:
                 self.reset_game()
             else:
-                print(f"[AUTOMATION] Completed {self.max_runs} runs. Exiting.")
+                print(f"[AUTOMATION] Completed {self.max_runs} runs. Displaying graph.")
+                # Automation finished, plot the graph
+                plot(self.scores, self.mean_scores)
                 self.running = False
         else:
             self.game_over = True
@@ -327,9 +339,26 @@ class Game:
                     self.end_game()
 
                 self.clock.tick(SNAKE_SPEED)
+
+            # Wait for user input before closing
+            print("Automation completed. Press any key or click to close.")
+            self.wait_for_close()
+
         except Exception as e:
             print(f"An error occurred: {e}")
         finally:
             pygame.quit()
             if self.mode == LEARNING_MODE:
                 self.learning_model.save_model()
+
+    def wait_for_close(self):
+        """Wait for the user to press a key or click before closing."""
+        waiting = True
+        while waiting:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    waiting = False
+                elif event.type in [pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN]:
+                    waiting = False
+            self.render()  # Optionally keep rendering the game screen during the wait
+

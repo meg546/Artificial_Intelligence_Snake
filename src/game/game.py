@@ -8,6 +8,7 @@ from src.ai.ai_controller import *
 from src.game.snake import Snake
 from src.game.food import Food
 from src.game.board import Board
+from src.ai.visualization import *
 
 class Game:
     def __init__(self, automate=False, max_runs=1):
@@ -29,9 +30,12 @@ class Game:
         )
         self.learning_model.load_model("model.pth")
 
+        # Initialize score tracking for visualization graphing
+        self.scores = []  # List to store scores for plotting
+        self.mean_scores = []  # List to store mean scores
 
         self.epsilon = 1.0  # Initial exploration rate
-        self.epsilon_decay = 0.995  # Decay rate for exploration
+        self.epsilon_decay = 0.999  # Decay rate for exploration
         self.min_epsilon = 0.1  # Minimum exploration rate
 
         # Initialize statistics and run data attributes
@@ -55,6 +59,10 @@ class Game:
         self.logs = []
         self.position_message = ""
         self.goal_text = ""
+
+        if self.automate:
+            reset_automation_data()  # Reset the file
+
 
         # Initialize game components
         self.reset_game()
@@ -167,6 +175,7 @@ class Game:
         self.goal_text = ""
         print("Game reset successfully.")
 
+
     def end_game(self):
         print(f"Ending game #{self.current_run + 1}.")
         stats = (
@@ -179,6 +188,18 @@ class Game:
         stats["total_score"] += self.score
         stats["highest_score"] = max(stats["highest_score"], self.score)
 
+        # Append the score to the scores list for the current automation
+        self.scores.append(self.score)
+
+        if self.mode == LEARNING_MODE:
+            mean_score = sum(self.scores[-100:]) / min(len(self.scores), 100)
+            self.mean_scores.append(mean_score)
+            self.epsilon = max(self.min_epsilon, self.epsilon * self.epsilon_decay)
+            print(f"Epsilon decayed to {self.epsilon:.4f}")
+
+        # Log current automation data
+        log_current_automation_data(self.current_run, self.score)
+
         # Log run data (run number and score)
         run_info = {"run": stats["runs"], "score": self.score}
         self.run_data[self.mode].append(run_info)
@@ -186,16 +207,39 @@ class Game:
         self.save_statistics()
 
         # Save the learning model for every 100 runs
-        if self.mode == LEARNING_MODE and stats["runs"] % 100 == 0:
-            self.learning_model.save_model()
-            print(f"[LEARNING_MODE] Model saved at run {stats['runs']}.")
+        if self.mode == LEARNING_MODE and self.current_run == self.max_runs - 1:  # At the end of automation
+            plot(
+                self.scores,
+                self.mean_scores,
+                save_path="final_learning_plot.png",
+                title="Learning Model Progress"
+            )
+            print("Automation completed. Learning plot saved.")
 
         if self.automate:
             self.current_run += 1
             if self.current_run < self.max_runs:
                 self.reset_game()
             else:
-                print(f"[AUTOMATION] Completed {self.max_runs} runs. Exiting.")
+                print(f"[AUTOMATION] Completed {self.max_runs} runs. Displaying graph.")
+                # Automation finished, plot the graph
+                if self.mode == A_STAR_MODE:
+                    # Load scores from JSON for A* plotting
+                    with open("data/current_automation_data.json", "r") as file:
+                        automation_data = json.load(file)
+                    scores = [run["score"] for run in automation_data["runs"]]
+                    plot(
+                        scores,
+                        save_path="astar_plot.png",
+                        title="A* Algorithm Progress"
+                    )
+                elif self.mode == LEARNING_MODE:
+                    plot(
+                        self.scores,
+                        self.mean_scores,
+                        save_path="learning_plot.png",
+                        title="Learning Model Progress"
+                    )
                 self.running = False
         else:
             self.game_over = True
@@ -230,9 +274,6 @@ class Game:
                 self.score += 1
                 self.snake.grow()
                 self.food.position = self.food.spawn(self.snake.body)
-
-            # Decay exploration rate
-            self.epsilon = max(self.min_epsilon, self.epsilon * self.epsilon_decay)
 
         elif self.mode == A_STAR_MODE:
             a_star_move(self.snake, self.food, self.board)
@@ -327,9 +368,27 @@ class Game:
                     self.end_game()
 
                 self.clock.tick(SNAKE_SPEED)
+
+            # Wait for user input before closing
+            if (self.automate):
+                print("Automation completed. Press any key or click to close.")
+                self.wait_for_close()
+
         except Exception as e:
             print(f"An error occurred: {e}")
         finally:
             pygame.quit()
             if self.mode == LEARNING_MODE:
                 self.learning_model.save_model()
+
+    def wait_for_close(self):
+        """Wait for the user to press a key or click before closing."""
+        waiting = True
+        while waiting:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    waiting = False
+                elif event.type in [pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN]:
+                    waiting = False
+            self.render()
+

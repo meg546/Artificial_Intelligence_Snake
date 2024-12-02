@@ -4,7 +4,7 @@ import pygame
 
 if __name__ == "__main__":
     try:
-        max_runs = 1000  # Specify the number of runs for automation
+        max_runs = 10  # Specify the number of runs for automation
         automate = True  # Enable automation
         game = Game(automate=automate, max_runs=max_runs)
 

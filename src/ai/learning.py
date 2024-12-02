@@ -11,15 +11,23 @@ class DeepQNetwork(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super(DeepQNetwork, self).__init__()
         self.linear1 = nn.Linear(input_size, hidden_size)
-        self.linear2 = nn.Linear(hidden_size, output_size)
+        self.linear2 = nn.Linear(hidden_size, hidden_size)
+        self.linear3 = nn.Linear(hidden_size, output_size)
 
     def forward(self, x):
         x = torch.relu(self.linear1(x))
-        x = self.linear2(x)
+        x = torch.relu(self.linear2(x))
+        x = self.linear3(x)
         return x
 
 class DeepQLearningModel:
-    def __init__(self, state_space_size, action_space_size, learning_rate=0.001, gamma=0.9, max_memory=100000, batch_size=64):
+    def __init__(self, state_space_size, action_space_size, 
+                 learning_rate=0.001, 
+                 gamma=0.99, 
+                 max_memory=100000, 
+                 batch_size=1000,
+                 epsilon_start=1.0, epsilon_end=0.01, epsilon_decay=0.995):
+        
         self.state_space_size = state_space_size
         self.action_space_size = action_space_size
         self.gamma = gamma
@@ -31,6 +39,15 @@ class DeepQLearningModel:
         self.model = DeepQNetwork(state_space_size, 256, action_space_size).to(self.device)
         self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
         self.loss_fn = nn.MSELoss()
+
+        # Epsilon parameters
+        self.epsilon = epsilon_start
+        self.epsilon_min = epsilon_end
+        self.epsilon_decay = epsilon_decay
+
+    def decay_epsilon(self):
+        self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)
+
 
     def choose_action(self, state, epsilon=None):
         """
@@ -51,24 +68,23 @@ class DeepQLearningModel:
         self.memory.append((state, action, reward, next_state, done))
 
     def train_short_memory(self, state, action, reward, next_state, done):
-        state = torch.tensor(state, dtype=torch.float).to(self.device)
-        next_state = torch.tensor(next_state, dtype=torch.float).to(self.device)
+        state = torch.tensor(state, dtype=torch.float).to(self.device).unsqueeze(0)
+        next_state = torch.tensor(next_state, dtype=torch.float).to(self.device).unsqueeze(0)
         action = torch.tensor([action]).to(self.device)
-        reward = torch.tensor([reward]).to(self.device)
+        reward = torch.tensor([reward], dtype=torch.float).to(self.device)
         done = torch.tensor([done]).to(self.device)
 
-        # Q-learning formula
-        q_update = reward
-        if not done:
-            with torch.no_grad():
-                q_update = reward + self.gamma * torch.max(self.model(next_state))
-
         q_values = self.model(state)
-        q_values[action] = q_update
+        next_q_values = self.model(next_state).detach()
 
-        # Calculate loss and backpropagate
+        target = q_values.clone()
+        if done:
+            target[0, action] = reward
+        else:
+            target[0, action] = reward + self.gamma * torch.max(next_q_values)
+
         self.optimizer.zero_grad()
-        loss = self.loss_fn(q_values, self.model(state))
+        loss = self.loss_fn(q_values, target)
         loss.backward()
         self.optimizer.step()
 
@@ -85,18 +101,15 @@ class DeepQLearningModel:
         rewards = torch.tensor(rewards, dtype=torch.float).to(self.device)
         dones = torch.tensor(dones, dtype=torch.bool).to(self.device)
 
-        # Q-learning formula
         q_values = self.model(states)
+        q_values = q_values.gather(1, actions.unsqueeze(1)).squeeze(1)
+
         with torch.no_grad():
-            q_next_values = self.model(next_states)
-            q_updates = rewards + (self.gamma * torch.max(q_next_values, dim=1).values * (~dones))
+            next_q_values = self.model(next_states)
+            max_next_q_values = torch.max(next_q_values, dim=1).values
+            target = rewards + self.gamma * max_next_q_values * (~dones)
 
-        # Update Q-values for chosen actions
-        q_values[range(self.batch_size), actions] = q_updates
-
-        # Calculate loss and backpropagate
-        self.optimizer.zero_grad()
-        loss = self.loss_fn(q_values, self.model(states))
+        loss = self.loss_fn(q_values, target)
         loss.backward()
         self.optimizer.step()
 
@@ -163,18 +176,20 @@ class DeepQLearningModel:
         return state
 
     def get_reward(self, snake, food, board):
-        head_x, head_y = snake.head_position()
         fruit_x, fruit_y = food.position
-
-        # Manhattan distance to food
-        distance_before = abs(head_x - fruit_x) + abs(head_y - fruit_y)
         next_head_x, next_head_y = snake.get_next_head_position()
-        distance_after = abs(next_head_x - fruit_x) + abs(next_head_y - fruit_y)
+
+        # Manhattan distance before and after the move
+        dist_to_food_before = abs(snake.head_position()[0] - fruit_x) + abs(snake.head_position()[1] - fruit_y)
+        dist_to_food_after = abs(next_head_x - fruit_x) + abs(next_head_y - fruit_y)
 
         # Reward system
         if not board.is_within_bounds((next_head_x, next_head_y)) or snake.has_collision():
             return -10  # Large penalty for dying
         elif (next_head_x, next_head_y) == (fruit_x, fruit_y):
             return 10  # Large reward for eating food
+        elif dist_to_food_after < dist_to_food_before:
+            return 1  # Small reward for getting closer to food
         else:
-            return 0  # no reward
+            return -1  # Small penalty for moving farther away
+

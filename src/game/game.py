@@ -1,6 +1,5 @@
 import pygame
 import json
-import os
 from config.settings import * 
 from src.ai.a_star import *
 from src.ai.learning import DeepQLearningModel
@@ -11,7 +10,7 @@ from src.game.board import Board
 from src.ai.visualization import *
 
 class Game:
-    def __init__(self, automate=False, max_runs=1):
+    def __init__(self, automate=False, max_runs=1, testing=False, num_walls=0):
         pygame.init()
         self.window = pygame.display.set_mode((WIDTH + LOG_WIDTH, HEIGHT))
         pygame.display.set_caption("Snake Game")
@@ -20,12 +19,17 @@ class Game:
         # Automation setup
         self.automate = automate
         self.max_runs = max_runs
+        self.testing = testing
         self.current_run = 0
+        self.num_walls = num_walls
+
+        self.idle_timer = 0
+        self.max_idle_ticks = 2000  # Maximum ticks before ending the round due to inactivity
         
         self.learning_model = DeepQLearningModel(
-            state_space_size=14,
+            state_space_size=11,
             action_space_size=4,
-            learning_rate=0.001,
+            learning_rate=0.002,
             gamma=0.9
         )
         self.learning_model.load_model("model.pth")
@@ -34,22 +38,25 @@ class Game:
         self.scores = []  # List to store scores for plotting
         self.mean_scores = []  # List to store mean scores
 
-        self.epsilon = 1.0  # Initial exploration rate
-        self.epsilon_decay = 0.999  # Decay rate for exploration
-        self.min_epsilon = 0.1  # Minimum exploration rate
-
         # Initialize statistics and run data attributes
         self.normal_stats = {"runs": 0, "highest_score": 0, "total_score": 0, "last_score": 0}
         self.a_star_stats = {"runs": 0, "highest_score": 0, "total_score": 0, "last_score": 0}
         self.learning_stats = {"runs": 0, "highest_score": 0, "total_score": 0, "last_score": 0}
-        self.run_data = {NORMAL_MODE: [], A_STAR_MODE: [], LEARNING_MODE: []}
+        self.testing_stats = {"runs": 0, "highest_score": 0, "total_score": 0, "last_score": 0}
+        self.current_automation_stats = []  # List to store run and score for current automation
+        self.run_data = {NORMAL_MODE: [], A_STAR_MODE: [], LEARNING_MODE: [], TESTING_MODE: []}
 
         # Load data from files
         self.load_statistics()
         self.load_run_data()
 
-        # Mode selection
-        self.mode = LEARNING_MODE if self.automate else select_mode(self.window)
+        # Set mode
+        if self.testing:
+            self.mode = TESTING_MODE
+            print("Testing mode enabled.")
+            self.automate = True  # Enable automation for testing
+        else:
+            self.mode = LEARNING_MODE if self.automate else select_mode(self.window)
 
         # Initialize game state
         self.running = True
@@ -71,23 +78,20 @@ class Game:
     # -----------------
     # Data Management
     # -----------------
-    def log_training_data(self, rewards, scores):
-        with open("training_log.csv", "a") as log_file:
-            log_file.write(f"{rewards},{scores}\n")
 
     def update_position_message(self):
-        """Update the message showing the snake's current head position."""
+        #Update the message showing the snake's current head position.
         head_pos_x, head_pos_y = self.snake.head_position()
         self.position_message = f"Snake Position: ({head_pos_x // TILE_SIZE}, {head_pos_y // TILE_SIZE})"
 
     def update_goal_position(self):
-        """Update the message showing the current food's position."""
+        #Update the message showing the current food's position.
         fruit_x, fruit_y = self.food.position
         self.goal_text = f"Goal Position: ({fruit_x // TILE_SIZE}, {fruit_y // TILE_SIZE})"
 
     def load_statistics(self):
-        """Load statistics for each mode from separate JSON files in the data directory."""
-        for mode in [NORMAL_MODE, A_STAR_MODE, LEARNING_MODE]:
+        #Load statistics for each mode from separate JSON files in the data directory.
+        for mode in [NORMAL_MODE, A_STAR_MODE, LEARNING_MODE, TESTING_MODE]:
             filename = f"data/{mode}_stats.json"
             try:
                 with open(filename, "r") as file:
@@ -97,44 +101,66 @@ class Game:
                         self.a_star_stats = json.load(file)
                     elif mode == LEARNING_MODE:
                         self.learning_stats = json.load(file)
+                    elif mode == TESTING_MODE:
+                        self.testing_stats = json.load(file)
             except (FileNotFoundError, json.JSONDecodeError):
                 print(f"{filename} not found or corrupted, using default values.")
 
     def save_statistics(self):
-        """Save statistics for each mode to separate JSON files in the data directory."""
+        #Save statistics for each mode to separate JSON files in the data directory.
         stats_files = {
             NORMAL_MODE: "data/normal_stats.json",
             A_STAR_MODE: "data/a_star_stats.json",
-            LEARNING_MODE: "data/learning_stats.json"
+            LEARNING_MODE: "data/learning_stats.json",
+            TESTING_MODE: "data/testing_stats.json",
         }
 
         for mode, filename in stats_files.items():
             data = (
                 self.normal_stats if mode == NORMAL_MODE else
                 self.a_star_stats if mode == A_STAR_MODE else
-                self.learning_stats
+                self.learning_stats if mode == LEARNING_MODE else
+                self.testing_stats
             )
             with open(filename, "w") as file:
                 json.dump(data, file, indent=4)
         print("Statistics saved to separate files in data directory.")
 
     def load_run_data(self):
-        """Load run data for each mode from separate JSON files in the data directory."""
+        #Load run data for each mode from separate JSON files in the data directory.
         for mode in [NORMAL_MODE, A_STAR_MODE, LEARNING_MODE]:
             filename = f"data/{mode}_run_data.json"
             try:
                 with open(filename, "r") as file:
                     self.run_data[mode] = json.load(file)
             except (FileNotFoundError, json.JSONDecodeError):
+                print(f"{filename} not found or corrupted. Resetting run data for {mode}.")
                 self.run_data[mode] = []
 
     def save_run_data(self):
-        """Save run data for each mode to separate JSON files in the data directory."""
-        for mode, data in self.run_data.items():
-            filename = f"data/{mode}_run_data.json"
+        #Save run data for the active mode to its JSON file.
+        filename = f"data/{self.mode}_run_data.json"
+        try:
             with open(filename, "w") as file:
-                json.dump(data, file, indent=4)
-        print("Run data saved to separate files in data directory.")
+                json.dump(self.run_data[self.mode], file, indent=4)
+            print(f"Run data saved to {filename}.")
+        except Exception as e:
+            print(f"Error saving run data to {filename}: {e}")
+
+    def save_current_automation_stats(self):
+        if self.mode == LEARNING_MODE:
+            return  # Do not save current stats for learning mode
+
+        filename = f"data/{self.mode}_current_automation.json"
+        try:
+            with open(filename, "w") as file:
+                json.dump(self.current_automation_stats, file, indent=4)
+            print(f"Current automation stats saved to {filename}.")
+        except Exception as e:
+            print(f"Error saving current automation stats: {e}")
+
+
+
 
     # -----------------
     # Game Logic
@@ -162,7 +188,8 @@ class Game:
 
     def reset_game(self):
         print("Resetting game...")
-        self.board = Board(WIDTH, HEIGHT, TILE_SIZE)
+        self.idle_timer = 0  # Reset idle timer
+        self.board = Board(WIDTH, HEIGHT, TILE_SIZE, num_walls=self.num_walls)
         initial_position = (self.board.grid_width // 2 * TILE_SIZE, self.board.grid_height // 2 * TILE_SIZE)
         self.snake = Snake(initial_position, TILE_SIZE)
         self.snake.direction = None
@@ -176,29 +203,50 @@ class Game:
         print("Game reset successfully.")
 
 
+
     def end_game(self):
+        if self.game_over:  # If already game over, skip
+            return
+        
         print(f"Ending game #{self.current_run + 1}.")
+        
+        # Determine the stats based on the mode
         stats = (
             self.normal_stats if self.mode == NORMAL_MODE else
             self.a_star_stats if self.mode == A_STAR_MODE else
             self.learning_stats
         )
-        stats["runs"] += 1
-        stats["last_score"] = self.score
-        stats["total_score"] += self.score
-        stats["highest_score"] = max(stats["highest_score"], self.score)
+        
+        # Update overall stats
+        if stats:
+            stats["runs"] += 1
+            stats["last_score"] = self.score
+            stats["total_score"] += self.score
+            stats["highest_score"] = max(stats["highest_score"], self.score)
+
+            # Update current automation stats (exclude learning mode)
+            if self.mode != LEARNING_MODE and self.automate:
+                self.current_automation_stats.append({
+                    "run": self.current_run + 1,
+                    "score": self.score
+                })
 
         # Append the score to the scores list for the current automation
         self.scores.append(self.score)
 
-        if self.mode == LEARNING_MODE:
+        if self.mode == LEARNING_MODE and self.automate:
+            self.learning_model.n_games += 1
+            # Update mean score
             mean_score = sum(self.scores[-100:]) / min(len(self.scores), 100)
             self.mean_scores.append(mean_score)
-            self.epsilon = max(self.min_epsilon, self.epsilon * self.epsilon_decay)
-            print(f"Epsilon decayed to {self.epsilon:.4f}")
 
-        # Log current automation data
-        log_current_automation_data(self.current_run, self.score)
+            # Decay epsilon
+            self.learning_model.decay_epsilon()
+            print(f"Epsilon decayed to {self.learning_model.epsilon:.4f}")
+        
+        elif self.mode == TESTING_MODE:
+            # Log testing progress
+            print(f"Testing mode: Game {self.current_run + 1} completed with score: {self.score}")
 
         # Log run data (run number and score)
         run_info = {"run": stats["runs"], "score": self.score}
@@ -206,34 +254,14 @@ class Game:
         self.save_run_data()
         self.save_statistics()
 
-        # Save the learning model for every 100 runs
-        if self.mode == LEARNING_MODE and self.current_run == self.max_runs - 1:  # At the end of automation
-            plot(
-                self.scores,
-                self.mean_scores,
-                save_path="final_learning_plot.png",
-                title="Learning Model Progress"
-            )
-            print("Automation completed. Learning plot saved.")
-
         if self.automate:
             self.current_run += 1
             if self.current_run < self.max_runs:
                 self.reset_game()
             else:
-                print(f"[AUTOMATION] Completed {self.max_runs} runs. Displaying graph.")
-                # Automation finished, plot the graph
-                if self.mode == A_STAR_MODE:
-                    # Load scores from JSON for A* plotting
-                    with open("data/current_automation_data.json", "r") as file:
-                        automation_data = json.load(file)
-                    scores = [run["score"] for run in automation_data["runs"]]
-                    plot(
-                        scores,
-                        save_path="astar_plot.png",
-                        title="A* Algorithm Progress"
-                    )
-                elif self.mode == LEARNING_MODE:
+                print(f"[AUTOMATION] Completed {self.max_runs} runs.")
+                self.save_current_automation_stats()
+                if self.mode == LEARNING_MODE:
                     plot(
                         self.scores,
                         self.mean_scores,
@@ -242,41 +270,76 @@ class Game:
                     )
                 self.running = False
         else:
+            # Non-automated behavior: Pause and wait for user input
             self.game_over = True
             self.paused = True
+            print("Game over. Press any key to restart.")
+
 
     def update(self):
+        # Prevent any updates if the game is over or paused
         if self.paused or self.game_over:
+            return
+        
+        self.idle_timer += 1
+
+        if self.idle_timer > self.max_idle_ticks:
+            print(f"Ending game due to inactivity. Idle timer exceeded {self.max_idle_ticks} ticks.")
+            self.end_game()
             return
 
         if self.mode == LEARNING_MODE:
-            # Get current state
-            current_state = self.learning_model.get_state(self.snake, self.food, self.board)
+            if self.automate:
+                # Automated learning logic
+                current_state = self.learning_model.get_state(self.snake, self.food, self.board)
+                action = self.learning_model.choose_action(current_state)
+                self.snake.change_direction(["UP", "DOWN", "LEFT", "RIGHT"][action])
+                self.snake.move()
 
-            # Choose an action using the learning model
-            action = self.learning_model.choose_action(current_state, self.epsilon)
-            self.snake.change_direction(["UP", "DOWN", "LEFT", "RIGHT"][action])
-            self.snake.move()
+                reward = self.learning_model.get_reward(self.snake, self.food, self.board)
+                next_state = self.learning_model.get_state(self.snake, self.food, self.board)
 
-            # Compute reward and next state
-            reward = self.learning_model.get_reward(self.snake, self.food, self.board)
-            next_state = self.learning_model.get_state(self.snake, self.food, self.board)
+                self.learning_model.train_step([current_state], [action], [reward], [next_state], [self.game_over])
+                self.learning_model.remember(current_state, action, reward, next_state, self.game_over)
 
-            # Train the model
-            self.learning_model.train_short_memory(current_state, action, reward, next_state, self.game_over)
+                if self.snake.head_position() == self.food.position:
+                    self.score += 1
+                    self.snake.grow()
+                    self.food.position = self.food.spawn(self.snake.body)
+                elif not self.board.is_within_bounds(self.snake.head_position()) or self.snake.has_collision(self.board):
+                    self.end_game()
 
-            # Remember for long-term memory
-            self.learning_model.remember(current_state, action, reward, next_state, self.game_over)
+            else:
+                # Non-automated behavior
+                current_state = self.learning_model.get_state(self.snake, self.food, self.board)
+                action = self.learning_model.choose_action(current_state, epsilon=0.0)  # Exploit only
+                self.snake.change_direction(["UP", "DOWN", "LEFT", "RIGHT"][action])
+                self.snake.move()
 
-            if reward == -10:  # Game over
-                self.end_game()
-            elif reward == 10:  # Food eaten
-                self.score += 1
-                self.snake.grow()
-                self.food.position = self.food.spawn(self.snake.body)
+                if not self.board.is_within_bounds(self.snake.head_position()) or self.snake.has_collision(self.board):
+                    if not self.game_over:  # Avoid multiple calls
+                        self.end_game()
+                elif self.snake.head_position() == self.food.position:
+                    self.score += 1
+                    self.snake.grow()
+                    self.food.position = self.food.spawn(self.snake.body)
+                    self.idle_timer = 0
 
         elif self.mode == A_STAR_MODE:
             a_star_move(self.snake, self.food, self.board)
+
+        elif self.mode == TESTING_MODE:
+            current_state = self.learning_model.get_state(self.snake, self.food, self.board)
+            action = self.learning_model.choose_action(current_state, epsilon=0.0)  # No exploration
+            self.snake.change_direction(["UP", "DOWN", "LEFT", "RIGHT"][action])
+            self.snake.move()
+
+            if not self.board.is_within_bounds(self.snake.head_position()) or self.snake.has_collision(self.board):
+                self.end_game()
+            if self.snake.head_position() == self.food.position:
+                self.score += 1
+                self.snake.grow()
+                self.food.position = self.food.spawn(self.snake.body)
 
         else:  # NORMAL_MODE
             self.snake.move()
@@ -285,21 +348,24 @@ class Game:
         self.update_position_message()
         self.update_goal_position()
 
-        # Collision and food handling for all modes
+        # Collision handling for all modes
         if self.snake.head_position() == self.food.position:
             self.score += 1
             self.snake.grow()
             self.food.position = self.food.spawn(self.snake.body)
-        elif not self.board.is_within_bounds(self.snake.head_position()) or self.snake.has_collision():
+        elif not self.board.is_within_bounds(self.snake.head_position()) or self.snake.has_collision(self.board):
             self.end_game()
 
+
     def render(self):
-        """Render the game state and statistics to the window."""
         # Draw the game board
         for row in range(0, HEIGHT, TILE_SIZE):
             for col in range(0, WIDTH, TILE_SIZE):
                 color = COLOR_LIGHT if (row // TILE_SIZE + col // TILE_SIZE) % 2 == 0 else COLOR_DARK
                 pygame.draw.rect(self.window, color, (col, row, TILE_SIZE, TILE_SIZE))
+        
+        #draw walls
+        self.board.draw(self.window)
 
         # Draw the snake and food
         self.snake.draw(self.window)
@@ -382,7 +448,7 @@ class Game:
                 self.learning_model.save_model()
 
     def wait_for_close(self):
-        """Wait for the user to press a key or click before closing."""
+        #Wait for the user to press a key or click before closing.
         waiting = True
         while waiting:
             for event in pygame.event.get():
@@ -391,4 +457,56 @@ class Game:
                 elif event.type in [pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN]:
                     waiting = False
             self.render()
+
+    def test_model(self, test_runs=100):
+        print(f"Starting testing phase with {test_runs} runs...")
+
+        # Switch the model to evaluation mode
+        self.learning_model.model.eval()
+
+        # Disable exploration (epsilon = 0)
+        test_epsilon = 0.0
+
+        # Initialize metrics
+        total_score = 0
+        max_score = 0
+        scores = []
+
+        for test_run in range(test_runs):
+            print(f"Testing game #{test_run + 1}...")
+            self.reset_game()
+
+            while not self.game_over:
+                # Get the current state
+                current_state = self.learning_model.get_state(self.snake, self.food, self.board)
+                # Choose the best action (exploit)
+                action = self.learning_model.choose_action(current_state, epsilon=test_epsilon)
+                # Perform the action
+                self.snake.change_direction(["UP", "DOWN", "LEFT", "RIGHT"][action])
+                self.snake.move()
+
+                # Check collisions or food
+                if not self.board.is_within_bounds(self.snake.head_position()) or self.snake.has_collision(self.board):
+                    break  # Game over
+                if self.snake.head_position() == self.food.position:
+                    self.score += 1
+                    self.snake.grow()
+                    self.food.position = self.food.spawn(self.snake.body)
+
+            # Update metrics
+            total_score += self.score
+            max_score = max(max_score, self.score)
+            scores.append(self.score)
+
+            print(f"Game #{test_run + 1} ended with score: {self.score}")
+
+        # Final metrics
+        average_score = total_score / test_runs
+        print(f"Testing completed. Average Score: {average_score:.2f}, Max Score: {max_score}")
+
+        return {
+            "average_score": average_score,
+            "max_score": max_score,
+            "scores": scores
+        }
 

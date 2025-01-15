@@ -41,7 +41,7 @@ def plot(scores, mean_scores=None, save_path="plot.png", title="Progress", windo
     plt.show()
 
 
-def plot_data(json_file, title, save_path="output_plot.png", window_size=100, show_ci=True):
+def plot_data(json_file, title, save_path="output_plot.png", window_size=100, show_ci=False):
     # Load data from JSON file
     with open(json_file, 'r') as f:
         data = json.load(f)
@@ -64,19 +64,13 @@ def plot_data(json_file, title, save_path="output_plot.png", window_size=100, sh
     # Plot rolling mean
     plt.plot(df["run"], df["rolling_mean_score"], label="Rolling Avg (100 runs)", color="red", linewidth=2)
 
-    # Add confidence intervals or error bars
-    if show_ci:
-        plt.fill_between(
-            df["run"], df["ci_lower"], df["ci_upper"], color="red", alpha=0.2, label="95% CI"
-        )
-    else:
-        plt.errorbar(
-            df["run"], df["rolling_mean_score"], yerr=df["rolling_std"], fmt='o', color="gray", alpha=0.5, label="Error Bars"
-        )
-
     # Add the median line
     median_score = df["score"].median()
     plt.axhline(median_score, color="orange", linestyle="--", label=f"Median Score ({median_score})")
+
+    # Add the median line
+    median_score = df["score"].mean()
+    plt.axhline(median_score, color="red", linestyle="--", label=f"Average Score ({median_score})")
 
     # Add labels, title, and legend
     plt.xlabel("Run")
@@ -94,14 +88,12 @@ def plot_data(json_file, title, save_path="output_plot.png", window_size=100, sh
 
 
 def reset_automation_data():
-    """Resets the JSON file to store data for the current automation."""
     current_automation_data = {"runs": []}  # Clear data structure
     with open("data/current_automation_data.json", "w") as file:
         json.dump(current_automation_data, file, indent=4)
     print("Automation data reset.")
 
 def log_current_automation_data(current_run, score):
-    """Log scores and run data for the current automation."""
     filename = "data/current_automation_data.json"
     try:
         # Load existing data
@@ -122,13 +114,12 @@ def log_current_automation_data(current_run, score):
 
 
 
-
 if __name__ == "__main__":
 
     data = "data/normal_run_data.json"
     title = "Human Performance"
     save_path="data/Human_performance.png"
     window_size = 100
-    ci = True
+    ci = False
 
     plot_data(data, title, save_path, window_size, ci);

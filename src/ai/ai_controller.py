@@ -1,9 +1,6 @@
 from config.settings import * 
 import pygame
 
-"""
-Display mode selection menu and wait for player to select a mode.
-"""
 def select_mode(window):
 
     titleFont = pygame.font.SysFont(None, 36)

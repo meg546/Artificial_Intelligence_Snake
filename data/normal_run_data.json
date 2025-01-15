@@ -1,18 +1,410 @@
 [
     {
         "run": 1,
-        "score": 2
+        "score": 1
     },
     {
         "run": 2,
-        "score": 20
+        "score": 0
     },
     {
         "run": 3,
-        "score": 14
+        "score": 17
     },
     {
         "run": 4,
-        "score": 48
+        "score": 13
+    },
+    {
+        "run": 5,
+        "score": 50
+    },
+    {
+        "run": 6,
+        "score": 14
+    },
+    {
+        "run": 7,
+        "score": 21
+    },
+    {
+        "run": 8,
+        "score": 18
+    },
+    {
+        "run": 9,
+        "score": 2
+    },
+    {
+        "run": 10,
+        "score": 30
+    },
+    {
+        "run": 11,
+        "score": 34
+    },
+    {
+        "run": 12,
+        "score": 40
+    },
+    {
+        "run": 13,
+        "score": 27
+    },
+    {
+        "run": 14,
+        "score": 32
+    },
+    {
+        "run": 15,
+        "score": 4
+    },
+    {
+        "run": 16,
+        "score": 37
+    },
+    {
+        "run": 17,
+        "score": 41
+    },
+    {
+        "run": 18,
+        "score": 33
+    },
+    {
+        "run": 19,
+        "score": 4
+    },
+    {
+        "run": 20,
+        "score": 29
+    },
+    {
+        "run": 21,
+        "score": 0
+    },
+    {
+        "run": 22,
+        "score": 0
+    },
+    {
+        "run": 23,
+        "score": 50
+    },
+    {
+        "run": 24,
+        "score": 37
+    },
+    {
+        "run": 25,
+        "score": 16
+    },
+    {
+        "run": 26,
+        "score": 35
+    },
+    {
+        "run": 27,
+        "score": 9
+    },
+    {
+        "run": 28,
+        "score": 16
+    },
+    {
+        "run": 29,
+        "score": 6
+    },
+    {
+        "run": 30,
+        "score": 1
+    },
+    {
+        "run": 31,
+        "score": 11
+    },
+    {
+        "run": 32,
+        "score": 45
+    },
+    {
+        "run": 33,
+        "score": 22
+    },
+    {
+        "run": 34,
+        "score": 22
+    },
+    {
+        "run": 35,
+        "score": 9
+    },
+    {
+        "run": 36,
+        "score": 13
+    },
+    {
+        "run": 37,
+        "score": 17
+    },
+    {
+        "run": 38,
+        "score": 17
+    },
+    {
+        "run": 39,
+        "score": 9
+    },
+    {
+        "run": 40,
+        "score": 31
+    },
+    {
+        "run": 41,
+        "score": 53
+    },
+    {
+        "run": 42,
+        "score": 13
+    },
+    {
+        "run": 43,
+        "score": 1
+    },
+    {
+        "run": 44,
+        "score": 47
+    },
+    {
+        "run": 45,
+        "score": 30
+    },
+    {
+        "run": 46,
+        "score": 6
+    },
+    {
+        "run": 47,
+        "score": 21
+    },
+    {
+        "run": 48,
+        "score": 13
+    },
+    {
+        "run": 49,
+        "score": 59
+    },
+    {
+        "run": 50,
+        "score": 49
+    },
+    {
+        "run": 51,
+        "score": 21
+    },
+    {
+        "run": 52,
+        "score": 17
+    },
+    {
+        "run": 53,
+        "score": 23
+    },
+    {
+        "run": 54,
+        "score": 42
+    },
+    {
+        "run": 55,
+        "score": 5
+    },
+    {
+        "run": 56,
+        "score": 11
+    },
+    {
+        "run": 57,
+        "score": 33
+    },
+    {
+        "run": 58,
+        "score": 53
+    },
+    {
+        "run": 59,
+        "score": 46
+    },
+    {
+        "run": 60,
+        "score": 27
+    },
+    {
+        "run": 61,
+        "score": 47
+    },
+    {
+        "run": 62,
+        "score": 38
+    },
+    {
+        "run": 63,
+        "score": 10
+    },
+    {
+        "run": 64,
+        "score": 17
+    },
+    {
+        "run": 65,
+        "score": 5
+    },
+    {
+        "run": 66,
+        "score": 3
+    },
+    {
+        "run": 67,
+        "score": 22
+    },
+    {
+        "run": 68,
+        "score": 27
+    },
+    {
+        "run": 69,
+        "score": 6
+    },
+    {
+        "run": 70,
+        "score": 16
+    },
+    {
+        "run": 71,
+        "score": 33
+    },
+    {
+        "run": 72,
+        "score": 12
+    },
+    {
+        "run": 73,
+        "score": 26
+    },
+    {
+        "run": 74,
+        "score": 20
+    },
+    {
+        "run": 75,
+        "score": 11
+    },
+    {
+        "run": 76,
+        "score": 11
+    },
+    {
+        "run": 77,
+        "score": 8
+    },
+    {
+        "run": 78,
+        "score": 52
+    },
+    {
+        "run": 79,
+        "score": 27
+    },
+    {
+        "run": 80,
+        "score": 1
+    },
+    {
+        "run": 81,
+        "score": 32
+    },
+    {
+        "run": 82,
+        "score": 4
+    },
+    {
+        "run": 83,
+        "score": 29
+    },
+    {
+        "run": 84,
+        "score": 2
+    },
+    {
+        "run": 85,
+        "score": 22
+    },
+    {
+        "run": 86,
+        "score": 19
+    },
+    {
+        "run": 87,
+        "score": 27
+    },
+    {
+        "run": 88,
+        "score": 29
+    },
+    {
+        "run": 89,
+        "score": 26
+    },
+    {
+        "run": 90,
+        "score": 12
+    },
+    {
+        "run": 91,
+        "score": 8
+    },
+    {
+        "run": 92,
+        "score": 2
+    },
+    {
+        "run": 93,
+        "score": 7
+    },
+    {
+        "run": 94,
+        "score": 2
+    },
+    {
+        "run": 95,
+        "score": 58
+    },
+    {
+        "run": 96,
+        "score": 2
+    },
+    {
+        "run": 97,
+        "score": 9
+    },
+    {
+        "run": 98,
+        "score": 36
+    },
+    {
+        "run": 99,
+        "score": 5
+    },
+    {
+        "run": 100,
+        "score": 19
+    },
+    {
+        "run": 101,
+        "score": 0
+    },
+    {
+        "run": 102,
+        "score": 22
     }
 ]

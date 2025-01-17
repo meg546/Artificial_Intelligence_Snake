@@ -15,10 +15,11 @@ COLOR_LIGHT = (170, 215, 81)    # Soft green
 COLOR_DARK = (162, 209, 73)     # Darker green
 
 # Game Settings
-SNAKE_SPEED = 200
+SNAKE_SPEED = 50
 
 # Mode Constants
 NORMAL_MODE = "normal"
 A_STAR_MODE = "a_star"
 LEARNING_MODE = "learning"
+TESTING_MODE = "testing"
 VERBOSE = False

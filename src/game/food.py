@@ -15,6 +15,7 @@ class Food:
             for x in range(self.board.grid_width)
             for y in range(self.board.grid_height)
             if (x * self.tile_size, y * self.tile_size) not in snake_body
+            and (x * self.tile_size, y * self.tile_size) not in self.board.walls
         ]
         
         # Select a random empty position
